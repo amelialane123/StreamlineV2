@@ -1,68 +1,64 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { useParams } from "react-router-dom"
 import { SiteHeader } from "../components/SiteHeader"
 import { Button } from "../components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
-import { MovieCard } from "../components/MovieCard"
-import { ScrollArea } from "../components/ui/scroll-area"
-import { Clock, Star, Share2, Heart, MessageSquare, CheckCircle, Calendar, Film, Tv2 } from "lucide-react"
-import { useState, useEffect } from "react"
+import { Star, Plus, Check, Eye, Calendar, Clock, Users } from "lucide-react"
+import { AddToListDialog } from "../components/AddToListDialog"
+import { ComparisonDialog } from "../components/ComparisonDialog"
+import { apiService } from "../services/api"
 
 interface ContentDetails {
   id: number
   title: string
-  year: number
-  rating: number
-  platforms: string[]
   image: string
-  backdrop: string
-  type: string
-  runtime: string
-  seasons?: number
-  episodes?: number
-  director: string
-  cast: string[]
+  rating: number
+  year: number
+  platforms: string[]
   genres: string[]
+  runtime: number
   description: string
+  cast: string[]
+  director: string
+  watched?: boolean
+  seasons?: number | null // Allow null for seasons
+  episodes?: number | null // Allow null for episodes
 }
 
 export default function TitlePage() {
   const { slug } = useParams<{ slug: string }>()
   const [content, setContent] = useState<ContentDetails | null>(null)
+  const [isWatched, setIsWatched] = useState(false)
+  const [showAddToList, setShowAddToList] = useState(false)
+  const [showComparison, setShowComparison] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchContent = async () => {
+      if (!slug) return
+
+      setLoading(true)
       try {
-        // Mock data based on slug - in real app, you'd fetch from API
-        const isShow = slug?.includes("bear") || slug?.includes("shogun")
-
-        const mockContent: ContentDetails = {
-          id: 1,
-          title: isShow ? "The Bear" : "Dune: Part Two",
-          year: isShow ? 2023 : 2024,
-          rating: isShow ? 4.9 : 4.8,
-          platforms: isShow ? ["Hulu", "Disney+"] : ["HBO Max", "Prime Video"],
-          image: "/placeholder.svg?height=600&width=400",
-          backdrop: "/placeholder.svg?height=600&width=1200",
-          type: isShow ? "TV Series" : "Movie",
-          runtime: isShow ? "30 min/episode" : "166 min",
-          seasons: isShow ? 2 : undefined,
-          episodes: isShow ? 18 : undefined,
-          director: isShow ? "Christopher Storer" : "Denis Villeneuve",
-          cast: isShow
-            ? ["Jeremy Allen White", "Ayo Edebiri", "Ebon Moss-Bachrach"]
-            : ["Timothée Chalamet", "Zendaya", "Rebecca Ferguson", "Josh Brolin"],
-          genres: isShow ? ["Comedy", "Drama"] : ["Sci-Fi", "Adventure", "Drama"],
-          description: isShow
-            ? "A young chef from the fine dining world returns to Chicago to run his family's sandwich shop after the suicide of his brother. As he fights to transform the restaurant and himself, his kitchen staff become his new family."
-            : "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family. Facing a choice between the love of his life and the fate of the universe, he must prevent a terrible future only he can foresee.",
+        const contentData = await apiService.getContentById(Number.parseInt(slug))
+        // Mock additional details since API might not have them
+        const detailedContent: ContentDetails = {
+          ...contentData,
+          genres: ["Sci-Fi", "Adventure", "Drama"],
+          runtime: 155,
+          description:
+            "In a distant future, humanity faces extinction as their home planet becomes uninhabitable. A team of explorers travels through a wormhole in space in an attempt to ensure humanity's survival.",
+          cast: ["Matthew McConaughey", "Anne Hathaway", "Jessica Chastain", "Michael Caine"],
+          director: "Christopher Nolan",
+          // Example of how seasons/episodes might be set, allowing for null or undefined
+          seasons: contentData.type === "TV Series" ? 2 : null,
+          episodes: contentData.type === "TV Series" ? 18 : null,
         }
-
-        setContent(mockContent)
+        setContent(detailedContent)
+        setIsWatched(detailedContent.watched || false)
       } catch (error) {
         console.error("Error fetching content:", error)
       } finally {
@@ -73,6 +69,19 @@ export default function TitlePage() {
     fetchContent()
   }, [slug])
 
+  const handleMarkAsWatched = () => {
+    if (!isWatched) {
+      setShowComparison(true)
+    } else {
+      setIsWatched(false)
+    }
+  }
+
+  const handleComparisonComplete = () => {
+    setIsWatched(true)
+    setShowComparison(false)
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col">
@@ -80,7 +89,7 @@ export default function TitlePage() {
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-            <p className="mt-4 text-muted-foreground">Loading...</p>
+            <p className="mt-4 text-muted-foreground">Loading content...</p>
           </div>
         </main>
       </div>
@@ -93,8 +102,8 @@ export default function TitlePage() {
         <SiteHeader />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Content Not Found</h1>
-            <p className="text-muted-foreground">The requested content could not be found.</p>
+            <h1 className="text-2xl font-bold mb-2">Content not found</h1>
+            <p className="text-muted-foreground">The content you're looking for doesn't exist.</p>
           </div>
         </main>
       </div>
@@ -102,258 +111,183 @@ export default function TitlePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader />
-      <main className="flex-1">
-        <div className="relative h-[50vh] md:h-[60vh] overflow-hidden">
-          <img
-            src={content.backdrop || "/placeholder.svg"}
-            alt={`${content.title} backdrop`}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/90 to-transparent" />
-          <div className="container relative h-full flex items-end pb-12">
-            <div className="flex flex-col md:flex-row gap-8 items-start">
-              <div className="hidden md:block w-64 rounded-md overflow-hidden shadow-lg">
-                <img
-                  src={content.image || "/placeholder.svg"}
-                  alt={content.title}
-                  className="w-full h-96 object-cover"
-                />
-              </div>
-              <div className="flex-1 space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {content.type}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {content.year}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs flex items-center gap-1">
-                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                      {content.rating}
-                    </Badge>
-                  </div>
-                  <h1 className="text-3xl md:text-4xl font-bold">{content.title}</h1>
-                  <div className="flex flex-wrap gap-2">
-                    {content.genres.map((genre) => (
-                      <Badge key={genre} variant="secondary">
-                        {genre}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <Button className="gap-2">
-                    <Clock className="h-4 w-4" />
-                    Add to Watchlist
-                  </Button>
-                  <Button variant="outline" className="gap-2 bg-transparent">
-                    <CheckCircle className="h-4 w-4" />
-                    Mark as Watched
-                  </Button>
-                  <Button variant="outline" size="icon">
-                    <Heart className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="icon">
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>{content.year}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {content.type === "TV Series" ? (
-                      <Tv2 className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <Film className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <span>{content.runtime}</span>
-                  </div>
-                  {content.seasons && (
-                    <div className="flex items-center gap-2">
-                      <span>
-                        {content.seasons} {content.seasons === 1 ? "Season" : "Seasons"}
-                      </span>
-                      <span>•</span>
-                      <span>
-                        {content.episodes} {content.episodes === 1 ? "Episode" : "Episodes"}
-                      </span>
+    <>
+      <div className="flex min-h-screen flex-col">
+        <SiteHeader />
+        <main className="flex-1">
+          <div className="container py-8">
+            <div className="max-w-6xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Poster */}
+                <div className="lg:col-span-1">
+                  <div className="sticky top-24">
+                    <div className="aspect-[2/3] overflow-hidden rounded-lg mb-4">
+                      <img
+                        src={content.image || "/placeholder.svg"}
+                        alt={content.title}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="font-medium">Available on</h3>
-                  <div className="flex gap-2">
-                    {content.platforms.map((platform) => (
-                      <Badge key={platform} className="bg-primary/20 text-primary hover:bg-primary/30 border-0">
-                        {platform}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="container py-8">
-          <div className="md:hidden w-full flex justify-center mb-8">
-            <div className="w-48 rounded-md overflow-hidden shadow-lg">
-              <img src={content.image || "/placeholder.svg"} alt={content.title} className="w-full h-72 object-cover" />
-            </div>
-          </div>
-
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="w-full max-w-md mx-auto grid grid-cols-3 mb-8">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="cast">Cast & Crew</TabsTrigger>
-              <TabsTrigger value="reviews">Reviews</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="space-y-8">
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Synopsis</h2>
-                <p className="text-muted-foreground">{content.description}</p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold">Similar Titles</h2>
-                  <Button variant="ghost" size="sm">
-                    View All
-                  </Button>
-                </div>
-                <ScrollArea className="w-full whitespace-nowrap pb-6">
-                  <div className="flex w-max space-x-4 p-1">
-                    <MovieCard
-                      id={2}
-                      title="Shogun"
-                      image="/placeholder.svg?height=450&width=300"
-                      rating={4.6}
-                      year={2024}
-                      platforms={["Hulu", "Disney+"]}
-                    />
-                    <MovieCard
-                      id={3}
-                      title="The Gentlemen"
-                      image="/placeholder.svg?height=450&width=300"
-                      rating={4.3}
-                      year={2024}
-                      platforms={["Netflix"]}
-                    />
-                    <MovieCard
-                      id={4}
-                      title="Severance"
-                      image="/placeholder.svg?height=450&width=300"
-                      rating={4.8}
-                      year={2022}
-                      platforms={["Apple TV+"]}
-                    />
-                  </div>
-                </ScrollArea>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="cast" className="space-y-8">
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Cast</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  {content.cast.map((actor, index) => (
-                    <div key={actor} className="flex flex-col items-center text-center">
-                      <Avatar className="h-24 w-24 mb-2">
-                        <AvatarImage src={`/placeholder.svg?height=100&width=100`} alt={actor} />
-                        <AvatarFallback>
-                          {actor
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="font-medium">{actor}</div>
-                      <div className="text-xs text-muted-foreground">Character {index + 1}</div>
+                    <div className="space-y-3">
+                      <Button
+                        className="w-full"
+                        variant={isWatched ? "secondary" : "default"}
+                        onClick={handleMarkAsWatched}
+                      >
+                        {isWatched ? <Check className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+                        {isWatched ? "Watched" : "Mark as Watched"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full bg-transparent"
+                        onClick={() => setShowAddToList(true)}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add to List
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="text-2xl font-bold">Crew</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="border rounded-lg p-4">
-                    <div className="font-medium">Director</div>
-                    <div>{content.director}</div>
-                  </div>
-                  <div className="border rounded-lg p-4">
-                    <div className="font-medium">Writer</div>
-                    <div>Writer Name</div>
-                  </div>
-                  <div className="border rounded-lg p-4">
-                    <div className="font-medium">Producer</div>
-                    <div>Producer Name</div>
                   </div>
                 </div>
-              </div>
-            </TabsContent>
 
-            <TabsContent value="reviews" className="space-y-8">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold">User Reviews</h2>
-                  <Button>Write a Review</Button>
-                </div>
-
-                <div className="grid gap-6">
-                  <div className="border rounded-lg p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src="/placeholder.svg?height=50&width=50" alt="User" />
-                          <AvatarFallback>MK</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">MovieKing42</div>
-                          <div className="text-xs text-muted-foreground">March 15, 2024</div>
+                {/* Content Details */}
+                <div className="lg:col-span-2">
+                  <div className="space-y-6">
+                    {/* Header */}
+                    <div>
+                      <h1 className="text-4xl font-bold mb-2">{content.title}</h1>
+                      <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>{content.year}</span>
                         </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          <span>{content.runtime} min</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          <span className="font-medium text-foreground">{content.rating}</span>
+                        </div>
+                        {content.seasons != null && content.episodes != null && (
+                          <div className="flex items-center gap-1">
+                            <span>
+                              {content.seasons} {content.seasons === 1 ? "Season" : "Seasons"}
+                            </span>
+                            <span>•</span>
+                            <span>
+                              {content.episodes} {content.episodes === 1 ? "Episode" : "Episodes"}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    </div>
+
+                    {/* Genres */}
+                    <div className="flex flex-wrap gap-2">
+                      {content.genres.map((genre) => (
+                        <Badge key={genre} variant="secondary">
+                          {genre}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                      <h2 className="text-xl font-semibold mb-3">Overview</h2>
+                      <p className="text-muted-foreground leading-relaxed">{content.description}</p>
+                    </div>
+
+                    {/* Streaming Platforms */}
+                    <div>
+                      <h2 className="text-xl font-semibold mb-3">Available On</h2>
+                      <div className="flex flex-wrap gap-2">
+                        {content.platforms.map((platform) => (
+                          <Badge key={platform}>{platform}</Badge>
                         ))}
                       </div>
                     </div>
-                    <p className="text-sm">
-                      This is an incredible piece of entertainment. The attention to detail and character development is
-                      phenomenal. Highly recommended!
-                    </p>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <Button variant="ghost" size="sm" className="gap-1">
-                        <Heart className="h-4 w-4" />
-                        124
-                      </Button>
-                      <Button variant="ghost" size="sm" className="gap-1">
-                        <MessageSquare className="h-4 w-4" />
-                        Reply
-                      </Button>
-                    </div>
+
+                    {/* Tabs for additional info */}
+                    <Tabs defaultValue="cast" className="w-full">
+                      <TabsList>
+                        <TabsTrigger value="cast">Cast & Crew</TabsTrigger>
+                        <TabsTrigger value="reviews">Reviews</TabsTrigger>
+                        <TabsTrigger value="similar">Similar</TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="cast" className="mt-6">
+                        <div className="space-y-4">
+                          <div>
+                            <h3 className="font-semibold mb-2">Director</h3>
+                            <p className="text-muted-foreground">{content.director}</p>
+                          </div>
+                          <div>
+                            <h3 className="font-semibold mb-2">Cast</h3>
+                            <div className="grid grid-cols-2 gap-2">
+                              {content.cast.map((actor) => (
+                                <p key={actor} className="text-muted-foreground">
+                                  {actor}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="reviews" className="mt-6">
+                        <div className="space-y-4">
+                          <Card>
+                            <CardHeader>
+                              <div className="flex items-center justify-between">
+                                <CardTitle className="text-base">Great storytelling!</CardTitle>
+                                <div className="flex items-center gap-1">
+                                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                  <span className="text-sm">4.5</span>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-sm text-muted-foreground">
+                                An incredible journey through space and time. The visuals are stunning and the emotional
+                                core is powerful.
+                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Users className="h-3 w-3" />
+                                <span className="text-xs text-muted-foreground">@moviefan123</span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="similar" className="mt-6">
+                        <div className="text-center py-8">
+                          <p className="text-muted-foreground">Similar content recommendations coming soon!</p>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
                   </div>
                 </div>
-
-                <div className="flex justify-center mt-6">
-                  <Button variant="outline">Load More Reviews</Button>
-                </div>
               </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </main>
-    </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <AddToListDialog
+        open={showAddToList}
+        onOpenChange={setShowAddToList}
+        contentId={content.id}
+        contentTitle={content.title}
+      />
+
+      <ComparisonDialog
+        open={showComparison}
+        onOpenChange={setShowComparison}
+        newContentId={content.id}
+        newContentTitle={content.title}
+        onComplete={handleComparisonComplete}
+      />
+    </>
   )
 }

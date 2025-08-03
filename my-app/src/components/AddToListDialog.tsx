@@ -1,145 +1,145 @@
 "use client"
 
-import type React from "react"
 import { useState, useEffect } from "react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog"
 import { Button } from "./ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "./ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
-import { PlusCircle } from "lucide-react"
+import { PlusCircle, ListPlus } from "lucide-react"
 import { apiService } from "../services/api"
 import { useToast } from "./ui/use-toast"
 
 interface AddToListDialogProps {
-  children: React.ReactNode
+  open: boolean
+  onOpenChange: (open: boolean) => void
   contentId: number
-  title: string
-  image: string
-  rating: number
-  year: number
-  platforms: string[]
+  contentTitle: string
 }
 
-export function AddToListDialog({ children, contentId, title }: AddToListDialogProps) {
-  const [selectedList, setSelectedList] = useState("")
-  const [showNewListInput, setShowNewListInput] = useState(false)
+export function AddToListDialog({ open, onOpenChange, contentId, contentTitle }: AddToListDialogProps) {
+  const [lists, setLists] = useState<Array<{ id: number; name: string; content_count: number }>>([])
   const [newListName, setNewListName] = useState("")
-  const [userLists, setUserLists] = useState<Array<{ id: number; name: string; content_count: number }>>([])
+  const [selectedList, setSelectedList] = useState<string | null>(null) // This would typically be a list ID
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
-    const fetchUserLists = async () => {
-      try {
-        const lists = await apiService.getUserLists()
-        setUserLists(lists)
-      } catch (error) {
-        console.error("Error fetching user lists:", error)
-      }
+    if (open) {
+      fetchLists()
     }
+  }, [open])
 
-    fetchUserLists()
-  }, [])
+  const fetchLists = async () => {
+    try {
+      const userLists = await apiService.getUserLists()
+      setLists(userLists)
+    } catch (error) {
+      console.error("Error fetching lists:", error)
+    }
+  }
 
   const handleAddToList = async () => {
+    if (!selectedList && !newListName.trim()) return
+
     setLoading(true)
     try {
-      if (showNewListInput && newListName) {
-        await apiService.createList(newListName)
-        await apiService.addToList(contentId, newListName)
-        toast({
-          title: "Success",
-          description: `"${title}" added to new list "${newListName}"`,
-        })
-      } else if (selectedList) {
-        await apiService.addToList(contentId, selectedList)
-        toast({
-          title: "Success",
-          description: `"${title}" added to list`,
-        })
+      if (selectedList) {
+        // Add to existing list
+        await apiService.addContentToList(contentId, selectedList)
+      } else if (newListName.trim()) {
+        // Create new list and add content
+        await apiService.createListAndAddContent(newListName, contentId)
       }
-
-      // Reset form
-      setSelectedList("")
+      toast({
+        title: "Success!",
+        description: `"${contentTitle}" added to list`,
+      })
+      onOpenChange(false)
       setNewListName("")
-      setShowNewListInput(false)
+      setSelectedList(null)
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to add to list. Please try again.",
         variant: "destructive",
       })
+      console.error("Error adding to list:", error)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add to List</DialogTitle>
-          <DialogDescription>Add "{title}" to one of your lists or create a new list.</DialogDescription>
+          <DialogTitle>Add "{contentTitle}" to a list</DialogTitle>
+          <DialogDescription>Select an existing list or create a new one.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          {!showNewListInput ? (
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="list" className="text-right">
-                List
-              </Label>
-              <Select value={selectedList} onValueChange={setSelectedList}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select a list" />
-                </SelectTrigger>
-                <SelectContent>
-                  {userLists.map((list) => (
-                    <SelectItem key={list.id} value={list.name}>
-                      {list.name} ({list.content_count} items)
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="new-list" onClick={() => setShowNewListInput(true)}>
-                    <div className="flex items-center gap-2">
-                      <PlusCircle className="h-4 w-4" />
-                      <span>Create New List</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+          {/* This section would dynamically load user's existing lists */}
+          <div className="grid gap-2">
+            <Label htmlFor="existing-list">Existing Lists</Label>
+            <div className="flex flex-col gap-2 max-h-32 overflow-y-auto border rounded-md p-2">
+              {lists.map((list) => (
+                <Button
+                  key={list.id}
+                  variant={selectedList === list.id.toString() ? "default" : "outline"}
+                  onClick={() => setSelectedList(list.id.toString())}
+                  className="justify-start"
+                >
+                  {list.name} ({list.content_count} items)
+                </Button>
+              ))}
             </div>
-          ) : (
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="new-list" className="text-right">
-                New List
-              </Label>
-              <div className="col-span-3">
-                <Input
-                  id="new-list"
-                  placeholder="Enter list name"
-                  value={newListName}
-                  onChange={(e) => setNewListName(e.target.value)}
-                />
-              </div>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
             </div>
-          )}
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or</span>
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="new-list">Create New List</Label>
+            <div className="flex items-center space-x-2">
+              <Input
+                id="new-list"
+                placeholder="New list name"
+                value={newListName}
+                onChange={(e) => {
+                  setNewListName(e.target.value)
+                  setSelectedList(null) // Deselect existing list if typing new one
+                }}
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={!newListName.trim()}
+                onClick={() => setSelectedList(null)} // Ensure no existing list is selected
+              >
+                <ListPlus className="h-4 w-4" />
+                <span className="sr-only">Create new list</span>
+              </Button>
+            </div>
+          </div>
         </div>
         <DialogFooter>
-          {showNewListInput && (
-            <Button variant="outline" onClick={() => setShowNewListInput(false)} className="mr-auto">
-              Back to Lists
-            </Button>
-          )}
-          <Button type="submit" onClick={handleAddToList} disabled={loading || (!selectedList && !newListName)}>
-            {loading ? "Adding..." : `Add to ${showNewListInput ? "New List" : "List"}`}
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleAddToList} disabled={loading || (!selectedList && !newListName.trim())}>
+            {loading ? (
+              "Adding..."
+            ) : (
+              <>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add to List
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

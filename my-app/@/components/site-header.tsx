@@ -1,58 +1,28 @@
-import { Link, useLocation } from "react-router-dom"
-import { Button } from "./ui/button"
-import { Input } from "./ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
-import { Bell, Film, Home, Search, TrendingUp, User, Users } from "lucide-react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Bell, Film, Home, Search, TrendingUp, User } from "lucide-react"
 
 export function SiteHeader() {
-  const location = useLocation()
-
-  const isActive = (path: string) => {
-    return location.pathname === path
-  }
-
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
-        <Link to="/" className="flex items-center gap-2 font-bold text-xl mr-8">
+        <Link href="/" className="flex items-center gap-2 font-bold text-xl mr-8">
           <Film className="h-6 w-6" />
           <span>WatchTracker</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 text-sm">
-          <Link
-            to="/"
-            className={`flex items-center gap-1 font-medium transition-colors hover:text-primary ${
-              isActive("/") ? "text-primary" : ""
-            }`}
-          >
+          <Link href="/" className="flex items-center gap-1 font-medium transition-colors hover:text-primary">
             <Home className="h-4 w-4" />
             Home
           </Link>
-          <Link
-            to="/discover"
-            className={`flex items-center gap-1 font-medium transition-colors hover:text-primary ${
-              isActive("/discover") ? "text-primary" : ""
-            }`}
-          >
+          <Link href="/discover" className="flex items-center gap-1 font-medium transition-colors hover:text-primary">
             <TrendingUp className="h-4 w-4" />
             Discover
           </Link>
-          <Link
-            to="/friends"
-            className={`flex items-center gap-1 font-medium transition-colors hover:text-primary ${
-              isActive("/friends") ? "text-primary" : ""
-            }`}
-          >
-            <Users className="h-4 w-4" />
-            Friends
-          </Link>
-          <Link
-            to="/profile"
-            className={`flex items-center gap-1 font-medium transition-colors hover:text-primary ${
-              isActive("/profile") ? "text-primary" : ""
-            }`}
-          >
+          <Link href="/profile" className="flex items-center gap-1 font-medium transition-colors hover:text-primary">
             <User className="h-4 w-4" />
             Profile
           </Link>
